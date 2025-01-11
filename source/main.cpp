@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "CertificateIssuer.hpp"
+#include "certificate/Revocator.hpp"
 
 namespace
 {
@@ -84,6 +85,21 @@ void generateDerivedCertificate()
               << getDerivedCertificatePath() << std::endl;
 }
 
+void revokeCertificate()
+{
+    certificate::Revocator revocator{
+        getRootCertificatePath(), getRootPrivateKeyPath()};
+    revocator.revokeCertificate("02", std::chrono::system_clock::now());
+    revocator.exportCRLToFile(resourcesPath + "crl.pem");
+
+    revocator.isCertificateRevoked("02")
+        ? std::cout << "Certificate revoked successfully" << std::endl
+        : std::cerr << "Failed to revoke certificate" << std::endl;
+
+    std::cout << "CRL exported successfully: " << resourcesPath + "crl.pem"
+              << std::endl;
+}
+
 } // namespace
 
 int main(int argc, char* argv[])
@@ -95,6 +111,7 @@ try
 
     generateRootCertificate();
     generateDerivedCertificate();
+    revokeCertificate();
 
     gnutls_global_deinit();
     return 0;

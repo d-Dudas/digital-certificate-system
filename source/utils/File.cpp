@@ -1,6 +1,7 @@
 #include "utils/File.hpp"
 
 #include <stdexcept>
+#include "Check.hpp"
 
 namespace
 {
@@ -28,5 +29,15 @@ void writeDatumToFile(const gnutls_datum_t& datum, const std::string& path)
     }
 
     fclose(file);
+}
+
+gnutls_datum_t readDatumFromFile(const std::string& path)
+{
+    gnutls_datum_t datum;
+    check(
+        gnutls_load_file(path.c_str(), &datum),
+        createErrorMessage("Failed to load file: " + path));
+
+    return datum;
 }
 } // namespace utils

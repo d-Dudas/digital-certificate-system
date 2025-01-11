@@ -2,6 +2,7 @@ set(SOURCES
     main.cpp
     Check.cpp
     CertificateIssuer.cpp
+    certificate/Revocator.cpp
     utils/File.cpp
 )
 
