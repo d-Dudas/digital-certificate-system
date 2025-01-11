@@ -1,10 +1,10 @@
 #include "CertificateIssuer.hpp"
-#include <gnutls/gnutls.h>
-#include <stdexcept>
 #include "Check.hpp"
+#include "utils/File.hpp"
 
 extern "C"
 {
+#include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
 }
 
@@ -170,7 +170,7 @@ void CertificateIssuer::exportCertificateToFile(
             certificate, GNUTLS_X509_FMT_PEM, &certificateData),
         createErrorMessage("Failed to export certificate."));
 
-    writeDatumToFile(certificateData, certificatePath);
+    utils::writeDatumToFile(certificateData, certificatePath);
     gnutls_free(certificateData.data);
 }
 
@@ -183,28 +183,8 @@ void CertificateIssuer::exportPrivateKeyToFile(
             privateKey, GNUTLS_X509_FMT_PEM, &privateKeyData),
         createErrorMessage("Failed to export private key."));
 
-    writeDatumToFile(privateKeyData, privateKeyPath);
+    utils::writeDatumToFile(privateKeyData, privateKeyPath);
     gnutls_free(privateKeyData.data);
-}
-
-void CertificateIssuer::writeDatumToFile(
-    const gnutls_datum_t& datum,
-    const std::string& path) const
-{
-    FILE* file = fopen(path.c_str(), "w");
-    if (! file)
-    {
-        throw std::runtime_error(
-            createErrorMessage("Failed to open file for writing."));
-    }
-
-    if (fwrite(datum.data, 1, datum.size, file) != datum.size)
-    {
-        throw std::runtime_error(
-            createErrorMessage("Failed to write data to file."));
-    }
-
-    fclose(file);
 }
 
 void CertificateIssuer::generateAndSetPrivateKey()

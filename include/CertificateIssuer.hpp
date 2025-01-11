@@ -39,8 +39,6 @@ public:
 
 private:
     void generateAndSetPrivateKey();
-    void writeDatumToFile(const gnutls_datum_t& datum, const std::string& path)
-        const;
 
     gnutls_x509_crt_t certificate{};
     gnutls_x509_privkey_t privateKey{};
