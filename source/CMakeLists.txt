@@ -1,7 +1,7 @@
 set(SOURCES
     main.cpp
     Check.cpp
-    RootCertificateGenerator.cpp
+    CertificateIssuer.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

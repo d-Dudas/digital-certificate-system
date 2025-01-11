@@ -1,32 +1,100 @@
 #include <gnutls/gnutls.h>
 #include <iostream>
 
-#include <RootCertificateGenerator.hpp>
+#include "CertificateIssuer.hpp"
 
 namespace
 {
-const std::string resourcesPath{"resources/"};
-const std::string rootCertificatePath{resourcesPath + "root.crt"};
-const std::string rootPrivateKeyPath{resourcesPath + "private_key.pem"};
+std::string resourcesPath{""};
+auto getRootCertificatePath{[]()
+                            {
+                                return resourcesPath + "root.crt";
+                            }};
+auto getRootPrivateKeyPath{[]()
+                           {
+                               return resourcesPath + "private_key.pem";
+                           }};
+
+auto getDerivedCertificatePath{[]()
+                               {
+                                   return resourcesPath + "derived.crt";
+                               }};
+
+auto getDerivedPrivateKeyPath{[]()
+                              {
+                                  return resourcesPath + "derived_key.pem";
+                              }};
+
+void printUsage(const std::string& programName)
+{
+    std::cerr << "Usage: " << programName << " <path_to_resources_folder>"
+              << std::endl;
+}
+
+void getResourcesPath(int argc, char* argv[])
+{
+    if (argc != 2)
+    {
+        printUsage(argv[0]);
+        exit(1);
+    }
+
+    resourcesPath = std::string{argv[1]};
+}
+
+void generateRootCertificate()
+{
+    CertificateIssuer certificateIssuer{};
+    certificateIssuer.setVersion(3);
+    certificateIssuer.setSerialNumber("01");
+    certificateIssuer.setActivationTime(std::chrono::system_clock::now());
+    certificateIssuer.setExpirationTime(
+        std::chrono::system_clock::now() + std::chrono::hours{24});
+    certificateIssuer.setDistinguishedName(
+        "CN=Root CA,O=Organization Name,C=Country");
+    certificateIssuer.sign();
+
+    certificateIssuer.exportPrivateKeyToFile(getRootPrivateKeyPath());
+    certificateIssuer.exportCertificateToFile(getRootCertificatePath());
+
+    std::cout << "Root private key generated successfully: "
+              << getRootPrivateKeyPath() << std::endl;
+    std::cout << "Root certificate generated successfully: "
+              << getRootCertificatePath() << std::endl;
+}
+
+void generateDerivedCertificate()
+{
+    CertificateIssuer certificateIssuer{};
+    certificateIssuer.setVersion(3);
+    certificateIssuer.setSerialNumber("02");
+    certificateIssuer.setActivationTime(std::chrono::system_clock::now());
+    certificateIssuer.setExpirationTime(
+        std::chrono::system_clock::now() + std::chrono::hours{24});
+    certificateIssuer.setDistinguishedName(
+        "CN=Derived CA,O=Organization Name,C=Country");
+    certificateIssuer.sign(getRootCertificatePath(), getRootPrivateKeyPath());
+
+    certificateIssuer.exportCertificateToFile(getDerivedCertificatePath());
+    certificateIssuer.exportPrivateKeyToFile(getDerivedPrivateKeyPath());
+
+    std::cout << "Derived private key generated successfully: "
+              << getDerivedPrivateKeyPath() << std::endl;
+    std::cout << "Derived certificate generated successfully: "
+              << getDerivedCertificatePath() << std::endl;
+}
+
 } // namespace
 
-int main()
+int main(int argc, char* argv[])
 try
 {
+    getResourcesPath(argc, argv);
+
     gnutls_global_init();
 
-    RootCertificateGenerator rootCertificateGenerator{};
-    rootCertificateGenerator.readPrivateKey(rootPrivateKeyPath);
-    rootCertificateGenerator.setVersion(3);
-    rootCertificateGenerator.setSerialNumber("01");
-    rootCertificateGenerator.setActivationTime(
-        std::chrono::system_clock::now());
-    rootCertificateGenerator.setExpirationTime(
-        std::chrono::system_clock::now() + std::chrono::hours{24});
-    rootCertificateGenerator.setDistinguishedName("CN=Root CA,O=Organization Name,C=Country");
-    rootCertificateGenerator.sign();
-
-    rootCertificateGenerator.saveToFile(rootCertificatePath);
+    generateRootCertificate();
+    generateDerivedCertificate();
 
     gnutls_global_deinit();
     return 0;
