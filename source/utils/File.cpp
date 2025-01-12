@@ -1,7 +1,7 @@
 #include "utils/File.hpp"
+#include "utils/Check.hpp"
 
 #include <stdexcept>
-#include "Check.hpp"
 
 namespace
 {

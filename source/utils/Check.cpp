@@ -1,7 +1,11 @@
-#include <Check.hpp>
+#include "utils/Check.hpp"
 
 #include <stdexcept>
+
+extern "C"
+{
 #include <gnutls/gnutls.h>
+}
 
 namespace
 {
@@ -11,6 +15,8 @@ std::string getGnutlsErrorMessage(int result)
 }
 } // namespace
 
+namespace utils
+{
 void check(int result, const std::string& errorMessage)
 {
     if (result != GNUTLS_E_SUCCESS)
@@ -27,3 +33,4 @@ void check(bool condition, const std::string& errorMessage)
         throw std::runtime_error(errorMessage);
     }
 }
+} // namespace utils

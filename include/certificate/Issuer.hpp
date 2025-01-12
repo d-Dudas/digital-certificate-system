@@ -8,11 +8,13 @@ extern "C"
 #include <gnutls/gnutls.h>
 }
 
-class CertificateIssuer
+namespace certificate
+{
+class Issuer
 {
 public:
-    CertificateIssuer();
-    ~CertificateIssuer();
+    Issuer();
+    ~Issuer();
 
     void setVersion(const int version);
     void setPrivateKey(const std::string& privateKeyFilePath);
@@ -43,3 +45,4 @@ private:
     gnutls_x509_crt_t certificate{};
     gnutls_x509_privkey_t privateKey{};
 };
+} // namespace certificate

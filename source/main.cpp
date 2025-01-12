@@ -1,5 +1,4 @@
 #include <cstring>
-#include <gnutls/gnutls.h>
 #include <iostream>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -7,9 +6,14 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
-#include "CertificateIssuer.hpp"
-#include "Check.hpp"
+extern "C"
+{
+#include <gnutls/gnutls.h>
+}
+
+#include "certificate/Issuer.hpp"
 #include "certificate/Revocator.hpp"
+#include "utils/Check.hpp"
 #include "utils/File.hpp"
 
 namespace
@@ -53,7 +57,7 @@ void getResourcesPath(int argc, char* argv[])
 
 void generateRootCertificate()
 {
-    CertificateIssuer certificateIssuer{};
+    certificate::Issuer certificateIssuer{};
     certificateIssuer.setVersion(3);
     certificateIssuer.setSerialNumber("01");
     certificateIssuer.setActivationTime(std::chrono::system_clock::now());
@@ -84,7 +88,7 @@ void generateDerivedCertificate(
     const std::string& certificatePath = getDerivedCertificatePath(),
     const std::string& privateKeyPath = getDerivedPrivateKeyPath())
 {
-    CertificateIssuer certificateIssuer{};
+    certificate::Issuer certificateIssuer{};
     certificateIssuer.setVersion(version);
     certificateIssuer.setSerialNumber(serialNumber);
     certificateIssuer.setActivationTime(activationTime);
@@ -124,7 +128,7 @@ void renewCertificateIfBelowThreshold(
     gnutls_x509_crt_init(&certificate);
     gnutls_datum_t certificateData{utils::readDatumFromFile(certificatePath)};
 
-    check(
+    utils::check(
         gnutls_x509_crt_import(
             certificate, &certificateData, GNUTLS_X509_FMT_PEM),
         "Failed to import certificate");
@@ -139,7 +143,7 @@ void renewCertificateIfBelowThreshold(
         return;
     }
 
-    CertificateIssuer certificateIssuer{};
+    certificate::Issuer certificateIssuer{};
     certificateIssuer.setVersion(3);
     certificateIssuer.setSerialNumber("03");
     certificateIssuer.setActivationTime(std::chrono::system_clock::now());
@@ -183,7 +187,7 @@ Thread startServer(
     serverAddress.sin_addr.s_addr = INADDR_ANY;
     serverAddress.sin_port = htons(8080);
     serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-    check(
+    utils::check(
         bind(serverSocket, (sockaddr*)&serverAddress, sizeof(serverAddress)),
         "Failed to bind server socket");
     listen(serverSocket, 5);
@@ -247,7 +251,7 @@ void performKeyExchange(const std::string& certificatePath)
         // Load the certificate
         gnutls_datum_t certificateData =
             utils::readDatumFromFile(certificatePath);
-        check(
+        utils::check(
             gnutls_x509_crt_import(
                 certificate, &certificateData, GNUTLS_X509_FMT_PEM),
             "Failed to import certificate");
@@ -260,7 +264,7 @@ void performKeyExchange(const std::string& certificatePath)
         gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, credentials);
 
         // Set priorities
-        check(
+        utils::check(
             gnutls_priority_init(&priorityCache, "NORMAL", nullptr),
             "Failed to set priorities");
         gnutls_priority_set(session, priorityCache);

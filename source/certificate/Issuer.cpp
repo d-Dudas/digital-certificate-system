@@ -1,5 +1,5 @@
-#include "CertificateIssuer.hpp"
-#include "Check.hpp"
+#include "certificate/Issuer.hpp"
+#include "utils/Check.hpp"
 #include "utils/File.hpp"
 
 extern "C"
@@ -8,9 +8,11 @@ extern "C"
 #include <gnutls/x509.h>
 }
 
+using namespace utils;
+
 namespace
 {
-const std::string certificateIssuerLogPrefix{"[CertificateIssuer] "};
+const std::string certificateIssuerLogPrefix{"[Issuer] "};
 
 std::string createErrorMessage(const std::string& message)
 {
@@ -18,14 +20,16 @@ std::string createErrorMessage(const std::string& message)
 }
 } // namespace
 
-CertificateIssuer::CertificateIssuer()
+namespace certificate
+{
+Issuer::Issuer()
 {
     check(
         gnutls_x509_crt_init(&certificate),
         createErrorMessage("Failed to initialize certificate."));
 }
 
-CertificateIssuer::~CertificateIssuer()
+Issuer::~Issuer()
 {
     if (certificate)
     {
@@ -38,14 +42,14 @@ CertificateIssuer::~CertificateIssuer()
     }
 }
 
-void CertificateIssuer::setVersion(const int version)
+void Issuer::setVersion(const int version)
 {
     check(
         gnutls_x509_crt_set_version(certificate, version),
         createErrorMessage("Failed to set version."));
 }
 
-void CertificateIssuer::setSerialNumber(const std::string& serialNumber)
+void Issuer::setSerialNumber(const std::string& serialNumber)
 {
     check(
         gnutls_x509_crt_set_serial(
@@ -55,7 +59,7 @@ void CertificateIssuer::setSerialNumber(const std::string& serialNumber)
         createErrorMessage("Failed to set serial number."));
 }
 
-void CertificateIssuer::setActivationTime(
+void Issuer::setActivationTime(
     std::chrono::system_clock::time_point activationTime)
 {
     const auto activationTimeT =
@@ -65,7 +69,7 @@ void CertificateIssuer::setActivationTime(
         createErrorMessage("Failed to set activation time."));
 }
 
-void CertificateIssuer::setExpirationTime(
+void Issuer::setExpirationTime(
     std::chrono::system_clock::time_point expirationTime)
 {
     const auto expirationTimeT =
@@ -75,15 +79,14 @@ void CertificateIssuer::setExpirationTime(
         createErrorMessage("Failed to set expiration time."));
 }
 
-void CertificateIssuer::setDistinguishedName(
-    const std::string& distinguishedName)
+void Issuer::setDistinguishedName(const std::string& distinguishedName)
 {
     check(
         gnutls_x509_crt_set_dn(certificate, distinguishedName.c_str(), 0),
         createErrorMessage("Failed to set distinguished name."));
 }
 
-void CertificateIssuer::sign(
+void Issuer::sign(
     std::string pathToRootCertificate,
     const std::string pathToRootPrivateKey)
 {
@@ -139,7 +142,7 @@ void CertificateIssuer::sign(
     gnutls_x509_privkey_deinit(rootPrivateKey);
 }
 
-void CertificateIssuer::sign()
+void Issuer::sign()
 {
     if (not privateKey)
     {
@@ -161,8 +164,7 @@ void CertificateIssuer::sign()
         createErrorMessage("Failed to sign certificate."));
 }
 
-void CertificateIssuer::exportCertificateToFile(
-    const std::string& certificatePath) const
+void Issuer::exportCertificateToFile(const std::string& certificatePath) const
 {
     gnutls_datum_t certificateData;
     check(
@@ -170,12 +172,11 @@ void CertificateIssuer::exportCertificateToFile(
             certificate, GNUTLS_X509_FMT_PEM, &certificateData),
         createErrorMessage("Failed to export certificate."));
 
-    utils::writeDatumToFile(certificateData, certificatePath);
+    writeDatumToFile(certificateData, certificatePath);
     gnutls_free(certificateData.data);
 }
 
-void CertificateIssuer::exportPrivateKeyToFile(
-    const std::string& privateKeyPath) const
+void Issuer::exportPrivateKeyToFile(const std::string& privateKeyPath) const
 {
     gnutls_datum_t privateKeyData;
     check(
@@ -183,11 +184,11 @@ void CertificateIssuer::exportPrivateKeyToFile(
             privateKey, GNUTLS_X509_FMT_PEM, &privateKeyData),
         createErrorMessage("Failed to export private key."));
 
-    utils::writeDatumToFile(privateKeyData, privateKeyPath);
+    writeDatumToFile(privateKeyData, privateKeyPath);
     gnutls_free(privateKeyData.data);
 }
 
-void CertificateIssuer::generateAndSetPrivateKey()
+void Issuer::generateAndSetPrivateKey()
 {
     check(
         gnutls_x509_privkey_init(&privateKey),
@@ -202,7 +203,7 @@ void CertificateIssuer::generateAndSetPrivateKey()
         createErrorMessage("Failed to set private key."));
 }
 
-void CertificateIssuer::setPrivateKey(const std::string& privateKeyPath)
+void Issuer::setPrivateKey(const std::string& privateKeyPath)
 {
     gnutls_datum_t privateKeyData;
     check(
@@ -224,3 +225,4 @@ void CertificateIssuer::setPrivateKey(const std::string& privateKeyPath)
 
     gnutls_free(privateKeyData.data);
 }
+} // namespace certificate

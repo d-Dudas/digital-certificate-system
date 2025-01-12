@@ -1,5 +1,5 @@
 #include "certificate/Revocator.hpp"
-#include "Check.hpp"
+#include "utils/Check.hpp"
 #include "utils/File.hpp"
 
 #include <cstddef>
@@ -14,6 +14,8 @@ extern "C"
 #include <gnutls/crypto.h>
 #include <gnutls/x509-ext.h>
 }
+
+using namespace utils;
 
 namespace
 {
@@ -68,7 +70,7 @@ Revocator::~Revocator()
 
 void Revocator::readAndSetRootCertificate(const std::string& path)
 {
-    gnutls_datum_t fileData{utils::readDatumFromFile(path)};
+    gnutls_datum_t fileData{readDatumFromFile(path)};
     check(
         gnutls_x509_crt_init(&rootCertificate),
         createErrorMessage("Failed to initialize root certificate."));
@@ -80,7 +82,7 @@ void Revocator::readAndSetRootCertificate(const std::string& path)
 
 void Revocator::readAndSetRootPrivateKey(const std::string& path)
 {
-    gnutls_datum_t fileData{utils::readDatumFromFile(path)};
+    gnutls_datum_t fileData{readDatumFromFile(path)};
     check(
         gnutls_x509_privkey_init(&rootPrivateKey),
         createErrorMessage("Failed to initialize root private key."));
@@ -146,7 +148,7 @@ void Revocator::exportCRLToFile(const std::string& path) const
     check(
         gnutls_x509_crl_export2(crl, GNUTLS_X509_FMT_PEM, &crlData),
         createErrorMessage("Failed to export CRL."));
-    utils::writeDatumToFile(crlData, path);
+    writeDatumToFile(crlData, path);
     gnutls_free(crlData.data);
 }
 } // namespace certificate

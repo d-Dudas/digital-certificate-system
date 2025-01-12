@@ -1,8 +1,8 @@
 set(SOURCES
     main.cpp
-    Check.cpp
-    CertificateIssuer.cpp
+    certificate/Issuer.cpp
     certificate/Revocator.cpp
+    utils/Check.cpp
     utils/File.cpp
 )
 
