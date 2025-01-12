@@ -1,22 +1,18 @@
-#include <cstring>
-#include <iostream>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <thread>
-#include <arpa/inet.h>
-#include <unistd.h>
+#include "Client.hpp"
+#include "Constants.hpp"
 #include "Server.hpp"
 #include "logger/Logger.hpp"
+#include "certificate/Issuer.hpp"
+#include "certificate/Revocator.hpp"
+#include "utils/Check.hpp"
+#include "utils/File.hpp"
+
+#include <iostream>
 
 extern "C"
 {
 #include <gnutls/gnutls.h>
 }
-
-#include "certificate/Issuer.hpp"
-#include "certificate/Revocator.hpp"
-#include "utils/Check.hpp"
-#include "utils/File.hpp"
 
 namespace
 {
@@ -116,9 +112,6 @@ void revokeCertificate()
     revocator.isCertificateRevoked("02")
         ? std::cout << "Certificate revoked successfully" << std::endl
         : std::cerr << "Failed to revoke certificate" << std::endl;
-
-    std::cout << "CRL exported successfully: " << resourcesPath + "crl.pem"
-              << std::endl;
 }
 
 void renewCertificateIfBelowThreshold(
@@ -160,107 +153,6 @@ void renewCertificateIfBelowThreshold(
     std::cout << "Certificate renewed successfully: " << certificatePath
               << std::endl;
 }
-
-void performKeyExchange(const std::string& certificatePath)
-{
-    gnutls_x509_crt_t certificate;
-    gnutls_certificate_credentials_t credentials;
-    gnutls_session_t session;
-    gnutls_priority_t priorityCache;
-
-    try
-    {
-        // Initialize GNUTLS
-        gnutls_x509_crt_init(&certificate);
-        gnutls_certificate_allocate_credentials(&credentials);
-        gnutls_init(&session, GNUTLS_CLIENT);
-
-        // Load the certificate
-        gnutls_datum_t certificateData =
-            utils::readDatumFromFile(certificatePath);
-        utils::gnutlsCheck(
-            gnutls_x509_crt_import(
-                certificate, &certificateData, GNUTLS_X509_FMT_PEM),
-            onErrorCallback("Failed to import certificate"));
-
-        gnutls_certificate_set_x509_key_file(
-            credentials,
-            certificatePath.c_str(),
-            getDerivedPrivateKeyPath().c_str(),
-            GNUTLS_X509_FMT_PEM);
-        gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, credentials);
-
-        // Set priorities
-        utils::gnutlsCheck(
-            gnutls_priority_init(&priorityCache, "NORMAL", nullptr),
-            onErrorCallback("Failed to set priorities"));
-        gnutls_priority_set(session, priorityCache);
-
-        // Connect to server
-        int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
-        sockaddr_in serverAddr = {};
-        serverAddr.sin_family = AF_INET;
-        serverAddr.sin_port = htons(8080); // Connect to port 5555
-        serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-
-        if (connect(
-                clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr))
-            < 0)
-        {
-            throw std::runtime_error("Failed to connect to server");
-        }
-
-        gnutls_transport_set_int(session, clientSocket);
-
-        // Perform handshake
-        int ret = gnutls_handshake(session);
-        if (ret < 0)
-        {
-            throw std::runtime_error(
-                std::string{"TLS handshake failed: "} + gnutls_strerror(ret));
-        }
-
-        std::cout << "Key exchange performed successfully" << std::endl;
-
-        // Derive a key from the master secret using PRF
-        // constexpr size_t keyLength = 48; // Desired key length in bytes
-        // unsigned char sessionKey[keyLength] = {0};
-        // const char* label = "My Key Exchange"; // Custom label for the PRF
-        // const char* context = "Key Exchange Context"; // Optional context
-
-        char buffer[256] = {0};
-        int bytesReceived = gnutls_record_recv(session, buffer, sizeof(buffer));
-        if (bytesReceived < 0)
-        {
-            throw std::runtime_error(
-                std::string{"Failed to receive data: "}
-                + gnutls_strerror(bytesReceived));
-        }
-
-        std::cout << "Received from server: "
-                  << std::string(buffer, bytesReceived) << std::endl;
-
-        const char* cipher = gnutls_cipher_get_name(gnutls_cipher_get(session));
-        const char* kx = gnutls_kx_get_name(gnutls_kx_get(session));
-        const char* mac = gnutls_mac_get_name(gnutls_mac_get(session));
-        std::cout << "Cipher: " << cipher << ", Key Exchange: " << kx
-                  << ", MAC: " << mac << std::endl;
-
-        // Close connection
-        gnutls_bye(session, GNUTLS_SHUT_RDWR);
-        close(clientSocket);
-    }
-    catch (const std::exception& e)
-    {
-        std::cerr << "Error during key exchange: " << e.what() << std::endl;
-    }
-
-    // Cleanup
-    gnutls_deinit(session);
-    gnutls_x509_crt_deinit(certificate);
-    gnutls_certificate_free_credentials(credentials);
-}
-
 } // namespace
 
 int main(int argc, char* argv[])
@@ -296,8 +188,16 @@ try
     Server server{getDerivedCertificatePath(), getDerivedPrivateKeyPath()};
     server.acceptOneClient();
 
-    std::this_thread::sleep_for(std::chrono::seconds{1});
-    performKeyExchange(getDerivedCertificatePath());
+    try
+    {
+        Client client{getDerivedCertificatePath(), getDerivedPrivateKeyPath()};
+        client.connectToServer(hostname, port);
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "Error during client connection: " << e.what()
+                  << std::endl;
+    }
 
     server.stop();
 

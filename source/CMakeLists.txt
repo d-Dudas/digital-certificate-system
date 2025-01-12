@@ -1,6 +1,7 @@
 set(SOURCES
     main.cpp
     Server.cpp
+    Client.cpp
     certificate/Issuer.cpp
     certificate/Revocator.cpp
     utils/Check.cpp
