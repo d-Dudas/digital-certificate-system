@@ -7,7 +7,6 @@
 #include <ctime>
 #include <gnutls/gnutls.h>
 #include <vector>
-#include <iostream>
 
 extern "C"
 {
