@@ -19,10 +19,12 @@ using namespace utils;
 
 namespace
 {
-std::string createErrorMessage(const std::string& message)
-{
-    return "[certificate][Revocator] " + message;
-}
+constexpr time_t thirtyDays{30 * 24 * 60 * 60};
+auto now{[]()
+         {
+             return std::chrono::system_clock::to_time_t(
+                 std::chrono::system_clock::now());
+         }};
 } // namespace
 
 namespace certificate
@@ -35,19 +37,17 @@ Revocator::Revocator(
     readAndSetRootCertificate(pathToRootCertificate);
     readAndSetRootPrivateKey(pathToRootPrivateKey);
 
-    time_t nextUpdate = time(nullptr) + 30 * 24 * 60 * 60; // 30 days from now
     check(
-        gnutls_x509_crl_set_next_update(crl, nextUpdate),
-        createErrorMessage("Failed to set CRL next update time."));
+        gnutls_x509_crl_set_next_update(crl, thirtyDays),
+        onErrorCallback("Failed to set CRL next update time."));
 
-    time_t thisUpdate = time(nullptr);
     check(
-        gnutls_x509_crl_set_this_update(crl, thisUpdate),
-        createErrorMessage("Failed to set CRL this update time."));
+        gnutls_x509_crl_set_this_update(crl, now()),
+        onErrorCallback("Failed to set CRL this update time."));
 
     check(
         gnutls_x509_crl_set_version(crl, 3),
-        createErrorMessage("Failed to set CRL version."));
+        onErrorCallback("Failed to set CRL version."));
 }
 
 Revocator::~Revocator()
@@ -68,15 +68,23 @@ Revocator::~Revocator()
     }
 }
 
+OnErrorCallback Revocator::onErrorCallback(const std::string& message) const
+{
+    return [this, message](const std::string& error)
+    {
+        logger.print().error() << message << " (" << error << ")";
+    };
+}
+
 void Revocator::readAndSetRootCertificate(const std::string& path)
 {
     gnutls_datum_t fileData{readDatumFromFile(path)};
     check(
         gnutls_x509_crt_init(&rootCertificate),
-        createErrorMessage("Failed to initialize root certificate."));
+        onErrorCallback("Failed to initialize root certificate."));
     check(
         gnutls_x509_crt_import(rootCertificate, &fileData, GNUTLS_X509_FMT_PEM),
-        createErrorMessage("Failed to import root certificate."));
+        onErrorCallback("Failed to import root certificate."));
     gnutls_free(fileData.data);
 }
 
@@ -85,11 +93,11 @@ void Revocator::readAndSetRootPrivateKey(const std::string& path)
     gnutls_datum_t fileData{readDatumFromFile(path)};
     check(
         gnutls_x509_privkey_init(&rootPrivateKey),
-        createErrorMessage("Failed to initialize root private key."));
+        onErrorCallback("Failed to initialize root private key."));
     check(
         gnutls_x509_privkey_import(
             rootPrivateKey, &fileData, GNUTLS_X509_FMT_PEM),
-        createErrorMessage("Failed to import root private key."));
+        onErrorCallback("Failed to import root private key."));
     gnutls_free(fileData.data);
 }
 
@@ -107,7 +115,10 @@ void Revocator::revokeCertificate(
     check(
         gnutls_x509_crl_set_crt_serial(
             crl, serialData.data, serialData.size, revocationTimeT),
-        createErrorMessage("Failed to add revoked certificate to CRL."));
+        onErrorCallback("Failed to add revoked certificate to CRL."));
+
+    logger.print().info() << "Certificate with serial number " << serialNumber
+                          << " revoked.";
 }
 
 bool Revocator::isCertificateRevoked(const std::string& serialNumber) const
@@ -122,7 +133,7 @@ bool Revocator::isCertificateRevoked(const std::string& serialNumber) const
         check(
             gnutls_x509_crl_get_crt_serial(
                 crl, i, serialData, &serialSize, &revocationTime),
-            createErrorMessage("Failed to get revoked certificate data."));
+            onErrorCallback("Failed to get revoked certificate data."));
 
         std::vector<unsigned char> serialNumberData{
             serialNumber.begin(), serialNumber.end()};
@@ -142,13 +153,15 @@ void Revocator::exportCRLToFile(const std::string& path) const
 {
     check(
         gnutls_x509_crl_sign(crl, rootCertificate, rootPrivateKey),
-        createErrorMessage("Failed to sign CRL."));
+        onErrorCallback("Failed to sign CRL."));
 
     gnutls_datum_t crlData;
     check(
         gnutls_x509_crl_export2(crl, GNUTLS_X509_FMT_PEM, &crlData),
-        createErrorMessage("Failed to export CRL."));
+        onErrorCallback("Failed to export CRL."));
     writeDatumToFile(crlData, path);
     gnutls_free(crlData.data);
+
+    logger.print().info() << "CRL exported to " << path;
 }
 } // namespace certificate

@@ -5,6 +5,7 @@
 #include <thread>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include "logger/Logger.hpp"
 
 extern "C"
 {
@@ -69,11 +70,6 @@ void generateRootCertificate()
 
     certificateIssuer.exportPrivateKeyToFile(getRootPrivateKeyPath());
     certificateIssuer.exportCertificateToFile(getRootCertificatePath());
-
-    std::cout << "Root private key generated successfully: "
-              << getRootPrivateKeyPath() << std::endl;
-    std::cout << "Root certificate generated successfully: "
-              << getRootCertificatePath() << std::endl;
 }
 
 void generateDerivedCertificate(
@@ -98,11 +94,6 @@ void generateDerivedCertificate(
 
     certificateIssuer.exportCertificateToFile(certificatePath);
     certificateIssuer.exportPrivateKeyToFile(privateKeyPath);
-
-    std::cout << "Derived private key generated successfully: "
-              << getDerivedPrivateKeyPath() << std::endl;
-    std::cout << "Derived certificate generated successfully: "
-              << getDerivedCertificatePath() << std::endl;
 }
 
 void revokeCertificate()
@@ -339,6 +330,8 @@ void performKeyExchange(const std::string& certificatePath)
 int main(int argc, char* argv[])
 try
 {
+    logger::Logger logger{"Main"};
+    logger.print().info() << "Starting application";
     getResourcesPath(argc, argv);
 
     gnutls_global_init();

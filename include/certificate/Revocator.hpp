@@ -3,6 +3,7 @@
 #include <chrono>
 #include <gnutls/x509.h>
 #include <string>
+#include "logger/Logger.hpp"
 
 extern "C"
 {
@@ -26,10 +27,13 @@ public:
 
     void exportCRLToFile(const std::string& path) const;
 
+    OnErrorCallback onErrorCallback(const std::string& message) const;
+
 private:
     void readAndSetRootCertificate(const std::string& path);
     void readAndSetRootPrivateKey(const std::string& path);
 
+    logger::Logger logger{"Revocator"};
     gnutls_x509_crl_t crl;
     gnutls_x509_crt_t rootCertificate;
     gnutls_x509_privkey_t rootPrivateKey;

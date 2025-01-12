@@ -2,6 +2,7 @@
 
 #include <string>
 #include <chrono>
+#include "logger/Logger.hpp"
 
 extern "C"
 {
@@ -36,12 +37,15 @@ public:
         const std::string pathToRootPrivateKey);
     void sign();
 
-    void exportCertificateToFile(const std::string& path) const;
-    void exportPrivateKeyToFile(const std::string& path) const;
+    void exportCertificateToFile(const std::string& path);
+    void exportPrivateKeyToFile(const std::string& path);
+
+    OnErrorCallback onErrorCallback(const std::string& message);
 
 private:
     void generateAndSetPrivateKey();
 
+    logger::Logger logger{"Issuer"};
     gnutls_x509_crt_t certificate{};
     gnutls_x509_privkey_t privateKey{};
 };

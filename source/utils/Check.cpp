@@ -1,4 +1,5 @@
 #include "utils/Check.hpp"
+#include "logger/Logger.hpp"
 
 #include <stdexcept>
 
@@ -31,6 +32,15 @@ void check(bool condition, const std::string& errorMessage)
     if (not condition)
     {
         throw std::runtime_error(errorMessage);
+    }
+}
+
+void check(int result, const OnErrorCallback& onError)
+{
+    if (result != GNUTLS_E_SUCCESS)
+    {
+        onError(getGnutlsErrorMessage(result));
+        throw std::runtime_error(getGnutlsErrorMessage(result));
     }
 }
 } // namespace utils

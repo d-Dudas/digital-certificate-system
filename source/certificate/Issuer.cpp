@@ -1,4 +1,5 @@
 #include "certificate/Issuer.hpp"
+#include "logger/Logger.hpp"
 #include "utils/Check.hpp"
 #include "utils/File.hpp"
 
@@ -10,23 +11,13 @@ extern "C"
 
 using namespace utils;
 
-namespace
-{
-const std::string certificateIssuerLogPrefix{"[Issuer] "};
-
-std::string createErrorMessage(const std::string& message)
-{
-    return certificateIssuerLogPrefix + message;
-}
-} // namespace
-
 namespace certificate
 {
 Issuer::Issuer()
 {
     check(
         gnutls_x509_crt_init(&certificate),
-        createErrorMessage("Failed to initialize certificate."));
+        onErrorCallback("Failed to initialize certificate."));
 }
 
 Issuer::~Issuer()
@@ -42,11 +33,19 @@ Issuer::~Issuer()
     }
 }
 
+OnErrorCallback Issuer::onErrorCallback(const std::string& message)
+{
+    return [this, message](const std::string& error)
+    {
+        logger.print().error() << message << " (" << error << ")";
+    };
+}
+
 void Issuer::setVersion(const int version)
 {
     check(
         gnutls_x509_crt_set_version(certificate, version),
-        createErrorMessage("Failed to set version."));
+        onErrorCallback("Failed to set version."));
 }
 
 void Issuer::setSerialNumber(const std::string& serialNumber)
@@ -56,7 +55,7 @@ void Issuer::setSerialNumber(const std::string& serialNumber)
             certificate,
             static_cast<const void*>(serialNumber.data()),
             serialNumber.size()),
-        createErrorMessage("Failed to set serial number."));
+        onErrorCallback("Failed to set serial number."));
 }
 
 void Issuer::setActivationTime(
@@ -66,7 +65,7 @@ void Issuer::setActivationTime(
         std::chrono::system_clock::to_time_t(activationTime);
     check(
         gnutls_x509_crt_set_activation_time(certificate, activationTimeT),
-        createErrorMessage("Failed to set activation time."));
+        onErrorCallback("Failed to set activation time."));
 }
 
 void Issuer::setExpirationTime(
@@ -76,14 +75,14 @@ void Issuer::setExpirationTime(
         std::chrono::system_clock::to_time_t(expirationTime);
     check(
         gnutls_x509_crt_set_expiration_time(certificate, expirationTimeT),
-        createErrorMessage("Failed to set expiration time."));
+        onErrorCallback("Failed to set expiration time."));
 }
 
 void Issuer::setDistinguishedName(const std::string& distinguishedName)
 {
     check(
         gnutls_x509_crt_set_dn(certificate, distinguishedName.c_str(), 0),
-        createErrorMessage("Failed to set distinguished name."));
+        onErrorCallback("Failed to set distinguished name."));
 }
 
 void Issuer::sign(
@@ -101,30 +100,30 @@ void Issuer::sign(
 
     check(
         gnutls_x509_crt_init(&rootCertificate),
-        createErrorMessage("Failed to initialize root certificate."));
+        onErrorCallback("Failed to initialize root certificate."));
 
     check(
         gnutls_x509_privkey_init(&rootPrivateKey),
-        createErrorMessage("Failed to initialize root private key."));
+        onErrorCallback("Failed to initialize root private key."));
 
     check(
         gnutls_load_file(pathToRootCertificate.c_str(), &fileData),
-        createErrorMessage("Failed to import root certificate."));
+        onErrorCallback("Failed to import root certificate."));
 
     check(
         gnutls_x509_crt_import(rootCertificate, &fileData, GNUTLS_X509_FMT_PEM),
-        createErrorMessage("Failed to import root certificate."));
+        onErrorCallback("Failed to import root certificate."));
 
     gnutls_free(fileData.data);
 
     check(
         gnutls_load_file(pathToRootPrivateKey.c_str(), &fileData),
-        createErrorMessage("Failed to import root private key."));
+        onErrorCallback("Failed to import root private key."));
 
     check(
         gnutls_x509_privkey_import(
             rootPrivateKey, &fileData, GNUTLS_X509_FMT_PEM),
-        createErrorMessage("Failed to import root private key."));
+        onErrorCallback("Failed to import root private key."));
 
     gnutls_free(fileData.data);
 
@@ -132,11 +131,11 @@ void Issuer::sign(
         gnutls_x509_crt_set_key_usage(
             certificate,
             GNUTLS_KEY_DATA_ENCIPHERMENT | GNUTLS_KEY_DIGITAL_SIGNATURE),
-        createErrorMessage("Failed to set key usage."));
+        onErrorCallback("Failed to set key usage."));
 
     check(
         gnutls_x509_crt_sign(certificate, rootCertificate, rootPrivateKey),
-        createErrorMessage("Failed to sign certificate."));
+        onErrorCallback("Failed to sign certificate."));
 
     gnutls_x509_crt_deinit(rootCertificate);
     gnutls_x509_privkey_deinit(rootPrivateKey);
@@ -152,55 +151,61 @@ void Issuer::sign()
     check(
         gnutls_x509_crt_set_key_usage(
             certificate, GNUTLS_KEY_KEY_CERT_SIGN | GNUTLS_KEY_CRL_SIGN),
-        createErrorMessage("Failed to set key usage."));
+        onErrorCallback("Failed to set key usage."));
 
     check(
         gnutls_x509_crt_set_basic_constraints(certificate, 1, -1),
-        createErrorMessage(
+        onErrorCallback(
             "Failed to set basic constraints for root certificate."));
 
     check(
         gnutls_x509_crt_sign(certificate, certificate, privateKey),
-        createErrorMessage("Failed to sign certificate."));
+        onErrorCallback("Failed to sign certificate."));
 }
 
-void Issuer::exportCertificateToFile(const std::string& certificatePath) const
+void Issuer::exportCertificateToFile(const std::string& certificatePath)
 {
     gnutls_datum_t certificateData;
     check(
         gnutls_x509_crt_export2(
             certificate, GNUTLS_X509_FMT_PEM, &certificateData),
-        createErrorMessage("Failed to export certificate."));
+        onErrorCallback("Failed to export certificate."));
 
     writeDatumToFile(certificateData, certificatePath);
     gnutls_free(certificateData.data);
+
+    logger.print().info() << "Certificate exported to " << certificatePath;
 }
 
-void Issuer::exportPrivateKeyToFile(const std::string& privateKeyPath) const
+void Issuer::exportPrivateKeyToFile(const std::string& privateKeyPath)
 {
     gnutls_datum_t privateKeyData;
     check(
         gnutls_x509_privkey_export2(
             privateKey, GNUTLS_X509_FMT_PEM, &privateKeyData),
-        createErrorMessage("Failed to export private key."));
+        onErrorCallback("Failed to export private key."));
 
     writeDatumToFile(privateKeyData, privateKeyPath);
     gnutls_free(privateKeyData.data);
+
+    logger.print().info() << "Private key exported to " << privateKeyPath;
 }
 
 void Issuer::generateAndSetPrivateKey()
 {
     check(
         gnutls_x509_privkey_init(&privateKey),
-        createErrorMessage("Failed to initialize private key."));
+        onErrorCallback("Failed to initialize private key."));
 
     check(
         gnutls_x509_privkey_generate(privateKey, GNUTLS_PK_RSA, 2048, 0),
-        createErrorMessage("Failed to generate private key."));
+        onErrorCallback("Failed to generate private key."));
 
     check(
         gnutls_x509_crt_set_key(certificate, privateKey),
-        createErrorMessage("Failed to set private key."));
+        onErrorCallback("Failed to set private key."));
+
+    logger.print().info() << "Private key generated.";
 }
 
 void Issuer::setPrivateKey(const std::string& privateKeyPath)
@@ -208,20 +213,20 @@ void Issuer::setPrivateKey(const std::string& privateKeyPath)
     gnutls_datum_t privateKeyData;
     check(
         gnutls_load_file(privateKeyPath.c_str(), &privateKeyData),
-        createErrorMessage("Failed to load private key from file."));
+        onErrorCallback("Failed to load private key from file."));
 
     check(
         gnutls_x509_privkey_init(&privateKey),
-        createErrorMessage("Failed to initialize private key."));
+        onErrorCallback("Failed to initialize private key."));
 
     check(
         gnutls_x509_privkey_import(
             privateKey, &privateKeyData, GNUTLS_X509_FMT_PEM),
-        createErrorMessage("Failed to import private key."));
+        onErrorCallback("Failed to import private key."));
 
     check(
         gnutls_x509_crt_set_key(certificate, privateKey),
-        createErrorMessage("Failed to set private key."));
+        onErrorCallback("Failed to set private key."));
 
     gnutls_free(privateKeyData.data);
 }
