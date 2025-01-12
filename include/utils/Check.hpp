@@ -5,8 +5,7 @@
 
 namespace utils
 {
-void check(int result, const std::string& errorMessage);
-void check(bool condition, const std::string& errorMessage);
+void gnutlsCheck(int result, const OnErrorCallback& onError);
 void check(int result, const OnErrorCallback& onError);
 
 template <typename T>

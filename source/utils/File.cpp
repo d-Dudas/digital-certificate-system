@@ -34,7 +34,7 @@ void writeDatumToFile(const gnutls_datum_t& datum, const std::string& path)
 gnutls_datum_t readDatumFromFile(const std::string& path)
 {
     gnutls_datum_t datum;
-    check(
+    gnutlsCheck(
         gnutls_load_file(path.c_str(), &datum),
         onErrorCallback("Failed to load file: " + path));
 

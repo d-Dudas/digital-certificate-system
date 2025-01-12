@@ -21,8 +21,9 @@ std::string timestamp()
 namespace logger
 {
 Stream::Stream(const std::string& prefix)
+: prefix{prefix}
 {
-    stream << timestamp() << "[" << prefix << "]";
+    stream << timestamp();
 }
 
 Stream::Stream(const Stream& other)
@@ -37,21 +38,26 @@ Stream::~Stream()
     std::cout << stream.str() << std::endl;
 }
 
+const std::string Stream::getPrefix()
+{
+    return "[" + prefix + "]";
+}
+
 std::ostringstream& Stream::error()
 {
-    stream << "[ERR] ";
+    stream << "[ERR]" << getPrefix() << " ";
     return stream;
 }
 
 std::ostringstream& Stream::info()
 {
-    stream << "[INF] ";
+    stream << "[INF]" << getPrefix() << " ";
     return stream;
 }
 
 std::ostringstream& Stream::warning()
 {
-    stream << "[WRN] ";
+    stream << "[WRN]" << getPrefix() << " ";
     return stream;
 }
 } // namespace logger

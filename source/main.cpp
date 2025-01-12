@@ -5,6 +5,7 @@
 #include <thread>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include "Server.hpp"
 #include "logger/Logger.hpp"
 
 extern "C"
@@ -43,6 +44,15 @@ void printUsage(const std::string& programName)
 {
     std::cerr << "Usage: " << programName << " <path_to_resources_folder>"
               << std::endl;
+}
+
+OnErrorCallback onErrorCallback(const std::string& message)
+{
+    return [message](const std::string& error)
+    {
+        logger::Logger logger{"Main"};
+        logger.print().error() << message << " (" << error << ")";
+    };
 }
 
 void getResourcesPath(int argc, char* argv[])
@@ -119,10 +129,10 @@ void renewCertificateIfBelowThreshold(
     gnutls_x509_crt_init(&certificate);
     gnutls_datum_t certificateData{utils::readDatumFromFile(certificatePath)};
 
-    utils::check(
+    utils::gnutlsCheck(
         gnutls_x509_crt_import(
             certificate, &certificateData, GNUTLS_X509_FMT_PEM),
-        "Failed to import certificate");
+        onErrorCallback("Failed to import certificate"));
 
     time_t validityThreshold = std::chrono::system_clock::to_time_t(
         std::chrono::system_clock::now() + std::chrono::hours{12});
@@ -151,80 +161,6 @@ void renewCertificateIfBelowThreshold(
               << std::endl;
 }
 
-using Thread = void;
-
-Thread startServer(
-    const std::string& certificatePath,
-    const std::string& privateKeyPath)
-{
-    gnutls_certificate_credentials_t credentials;
-    gnutls_session_t session;
-
-    gnutls_certificate_allocate_credentials(&credentials);
-    gnutls_certificate_set_x509_key_file(
-        credentials,
-        certificatePath.c_str(),
-        privateKeyPath.c_str(),
-        GNUTLS_X509_FMT_PEM);
-
-    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverSocket < 0)
-    {
-        throw std::runtime_error{"Failed to create server socket"};
-    }
-
-    sockaddr_in serverAddress;
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
-    serverAddress.sin_port = htons(8080);
-    serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-    utils::check(
-        bind(serverSocket, (sockaddr*)&serverAddress, sizeof(serverAddress)),
-        "Failed to bind server socket");
-    listen(serverSocket, 5);
-
-    std::cout << "Server started" << std::endl;
-
-    // while (true)
-    // {
-    int clientSocket = accept(serverSocket, nullptr, nullptr);
-    if (clientSocket < 0)
-    {
-        throw std::runtime_error{"Failed to accept client connection"};
-    }
-
-    gnutls_init(&session, GNUTLS_SERVER);
-    gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, credentials);
-    gnutls_priority_set_direct(session, "NORMAL", nullptr);
-    gnutls_transport_set_int(session, clientSocket);
-
-    int ret = gnutls_handshake(session);
-    if (ret < 0)
-    {
-        throw std::runtime_error{
-            std::string{"TLS handshake failed: "} + gnutls_strerror(ret)};
-    }
-
-    std::cout << "TLS handshake completed with client!" << std::endl;
-
-    std::string response = "Hello, secure world!";
-    gnutls_record_send(session, response.c_str(), response.length());
-
-    const char* cipher = gnutls_cipher_get_name(gnutls_cipher_get(session));
-    const char* kx = gnutls_kx_get_name(gnutls_kx_get(session));
-    const char* mac = gnutls_mac_get_name(gnutls_mac_get(session));
-    std::cout << "Cipher: " << cipher << ", Key Exchange: " << kx
-              << ", MAC: " << mac << std::endl;
-
-    gnutls_bye(session, GNUTLS_SHUT_RDWR);
-    gnutls_deinit(session);
-    close(clientSocket);
-    // }
-
-    close(serverSocket);
-    gnutls_certificate_free_credentials(credentials);
-}
-
 void performKeyExchange(const std::string& certificatePath)
 {
     gnutls_x509_crt_t certificate;
@@ -242,10 +178,10 @@ void performKeyExchange(const std::string& certificatePath)
         // Load the certificate
         gnutls_datum_t certificateData =
             utils::readDatumFromFile(certificatePath);
-        utils::check(
+        utils::gnutlsCheck(
             gnutls_x509_crt_import(
                 certificate, &certificateData, GNUTLS_X509_FMT_PEM),
-            "Failed to import certificate");
+            onErrorCallback("Failed to import certificate"));
 
         gnutls_certificate_set_x509_key_file(
             credentials,
@@ -255,9 +191,9 @@ void performKeyExchange(const std::string& certificatePath)
         gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, credentials);
 
         // Set priorities
-        utils::check(
+        utils::gnutlsCheck(
             gnutls_priority_init(&priorityCache, "NORMAL", nullptr),
-            "Failed to set priorities");
+            onErrorCallback("Failed to set priorities"));
         gnutls_priority_set(session, priorityCache);
 
         // Connect to server
@@ -357,16 +293,13 @@ try
     renewCertificateIfBelowThreshold(
         getDerivedCertificatePath(), getDerivedPrivateKeyPath());
 
-    auto serverThread = std::thread{
-        startServer, getDerivedCertificatePath(), getDerivedPrivateKeyPath()};
+    Server server{getDerivedCertificatePath(), getDerivedPrivateKeyPath()};
+    server.acceptOneClient();
 
     std::this_thread::sleep_for(std::chrono::seconds{1});
     performKeyExchange(getDerivedCertificatePath());
 
-    if (serverThread.joinable())
-    {
-        serverThread.join();
-    }
+    server.stop();
 
     gnutls_global_deinit();
     return 0;

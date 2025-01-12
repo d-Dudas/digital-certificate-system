@@ -37,15 +37,15 @@ Revocator::Revocator(
     readAndSetRootCertificate(pathToRootCertificate);
     readAndSetRootPrivateKey(pathToRootPrivateKey);
 
-    check(
+    gnutlsCheck(
         gnutls_x509_crl_set_next_update(crl, thirtyDays),
         onErrorCallback("Failed to set CRL next update time."));
 
-    check(
+    gnutlsCheck(
         gnutls_x509_crl_set_this_update(crl, now()),
         onErrorCallback("Failed to set CRL this update time."));
 
-    check(
+    gnutlsCheck(
         gnutls_x509_crl_set_version(crl, 3),
         onErrorCallback("Failed to set CRL version."));
 }
@@ -79,10 +79,10 @@ OnErrorCallback Revocator::onErrorCallback(const std::string& message) const
 void Revocator::readAndSetRootCertificate(const std::string& path)
 {
     gnutls_datum_t fileData{readDatumFromFile(path)};
-    check(
+    gnutlsCheck(
         gnutls_x509_crt_init(&rootCertificate),
         onErrorCallback("Failed to initialize root certificate."));
-    check(
+    gnutlsCheck(
         gnutls_x509_crt_import(rootCertificate, &fileData, GNUTLS_X509_FMT_PEM),
         onErrorCallback("Failed to import root certificate."));
     gnutls_free(fileData.data);
@@ -91,10 +91,10 @@ void Revocator::readAndSetRootCertificate(const std::string& path)
 void Revocator::readAndSetRootPrivateKey(const std::string& path)
 {
     gnutls_datum_t fileData{readDatumFromFile(path)};
-    check(
+    gnutlsCheck(
         gnutls_x509_privkey_init(&rootPrivateKey),
         onErrorCallback("Failed to initialize root private key."));
-    check(
+    gnutlsCheck(
         gnutls_x509_privkey_import(
             rootPrivateKey, &fileData, GNUTLS_X509_FMT_PEM),
         onErrorCallback("Failed to import root private key."));
@@ -112,7 +112,7 @@ void Revocator::revokeCertificate(
     const auto revocationTimeT =
         std::chrono::system_clock::to_time_t(revocationTime);
 
-    check(
+    gnutlsCheck(
         gnutls_x509_crl_set_crt_serial(
             crl, serialData.data, serialData.size, revocationTimeT),
         onErrorCallback("Failed to add revoked certificate to CRL."));
@@ -130,7 +130,7 @@ bool Revocator::isCertificateRevoked(const std::string& serialNumber) const
         size_t serialSize = sizeof(serialData);
         time_t revocationTime;
 
-        check(
+        gnutlsCheck(
             gnutls_x509_crl_get_crt_serial(
                 crl, i, serialData, &serialSize, &revocationTime),
             onErrorCallback("Failed to get revoked certificate data."));
@@ -151,12 +151,12 @@ bool Revocator::isCertificateRevoked(const std::string& serialNumber) const
 
 void Revocator::exportCRLToFile(const std::string& path) const
 {
-    check(
+    gnutlsCheck(
         gnutls_x509_crl_sign(crl, rootCertificate, rootPrivateKey),
         onErrorCallback("Failed to sign CRL."));
 
     gnutls_datum_t crlData;
-    check(
+    gnutlsCheck(
         gnutls_x509_crl_export2(crl, GNUTLS_X509_FMT_PEM, &crlData),
         onErrorCallback("Failed to export CRL."));
     writeDatumToFile(crlData, path);

@@ -17,6 +17,9 @@ public:
     std::ostringstream& warning();
 
 private:
+    const std::string getPrefix();
+
     std::ostringstream stream{};
+    const std::string prefix;
 };
 } // namespace logger

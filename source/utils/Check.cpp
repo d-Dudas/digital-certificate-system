@@ -18,7 +18,7 @@ std::string getGnutlsErrorMessage(int result)
 
 namespace utils
 {
-void check(int result, const std::string& errorMessage)
+void gnutlsCheck(int result, const std::string& errorMessage)
 {
     if (result != GNUTLS_E_SUCCESS)
     {
@@ -27,20 +27,22 @@ void check(int result, const std::string& errorMessage)
     }
 }
 
-void check(bool condition, const std::string& errorMessage)
-{
-    if (not condition)
-    {
-        throw std::runtime_error(errorMessage);
-    }
-}
-
-void check(int result, const OnErrorCallback& onError)
+void gnutlsCheck(int result, const OnErrorCallback& onError)
 {
     if (result != GNUTLS_E_SUCCESS)
     {
         onError(getGnutlsErrorMessage(result));
         throw std::runtime_error(getGnutlsErrorMessage(result));
+    }
+}
+
+void check(int result, const OnErrorCallback& onError)
+{
+    if (result < 0)
+    {
+        const std::string message{"No error message available"};
+        onError(message);
+        throw std::runtime_error(message);
     }
 }
 } // namespace utils
