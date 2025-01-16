@@ -15,6 +15,7 @@ public:
     std::ostringstream& error();
     std::ostringstream& info();
     std::ostringstream& warning();
+    std::ostringstream& withoutPrefix();
 
 private:
     const std::string getPrefix();

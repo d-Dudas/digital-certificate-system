@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
+#include <string_view>
 
-const std::uint16_t port{8080};
-const std::string hostname{"127.0.0.1"};
+constexpr std::uint16_t port{8080};
+constexpr std::string_view hostname{"127.0.0.1"};

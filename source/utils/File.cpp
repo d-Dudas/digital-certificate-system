@@ -2,6 +2,7 @@
 #include "logger/Logger.hpp"
 #include "utils/Check.hpp"
 
+#include <gnutls/x509.h>
 #include <stdexcept>
 
 namespace
@@ -39,5 +40,19 @@ gnutls_datum_t readDatumFromFile(const std::string& path)
         onErrorCallback("Failed to load file: " + path));
 
     return datum;
+}
+
+gnutls_x509_crt_t importCertificateFromFile(const std::string& path)
+{
+    gnutls_x509_crt_t certificate;
+    gnutls_x509_crt_init(&certificate);
+    gnutls_datum_t certificateData{readDatumFromFile(path)};
+
+    gnutlsCheck(
+        gnutls_x509_crt_import(
+            certificate, &certificateData, GNUTLS_X509_FMT_PEM),
+        onErrorCallback("Failed to import certificate"));
+
+    return certificate;
 }
 } // namespace utils

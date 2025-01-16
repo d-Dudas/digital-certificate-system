@@ -60,4 +60,10 @@ std::ostringstream& Stream::warning()
     stream << "[WRN]" << getPrefix() << " ";
     return stream;
 }
+
+std::ostringstream& Stream::withoutPrefix()
+{
+    stream.str("");
+    return stream;
+}
 } // namespace logger

@@ -1,5 +1,6 @@
 set(SOURCES
     main.cpp
+    App.cpp
     Server.cpp
     Client.cpp
     certificate/Issuer.cpp
