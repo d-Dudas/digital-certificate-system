@@ -61,6 +61,9 @@ void Client::connectToServer(const std::string& hostname, int port)
         onErrorCallback("Failed to connect to server"));
 
     gnutls_transport_set_int(session, clientSocket);
+
+    logger.print().info() << "Connected to server. Performing handshake...";
+
     check(gnutls_handshake(session), onErrorCallback("TLS handshake failed"));
 
     logger.print().info() << "Handshake performed successfully";

@@ -136,7 +136,18 @@ try
 
     {
         Server server{getDerivedCertificatePath(), getDerivedPrivateKeyPath()};
-        server.acceptOneClient();
+
+        try
+        {
+            server.acceptOneClient();
+        }
+        catch (const std::exception& e)
+        {
+            logger.print().error()
+                << "Error during server connection: " << e.what();
+            server.stop();
+            throw e;
+        }
 
         try
         {

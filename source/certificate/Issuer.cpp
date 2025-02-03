@@ -198,7 +198,8 @@ void Issuer::generateAndSetPrivateKey()
         onErrorCallback("Failed to initialize private key."));
 
     gnutlsCheck(
-        gnutls_x509_privkey_generate(privateKey, GNUTLS_PK_RSA, 2048, 0),
+        gnutls_x509_privkey_generate(privateKey, GNUTLS_PK_MLDSA65, 2048, 0),
+        // gnutls_x509_privkey_generate(privateKey, GNUTLS_PK_RSA, 2048, 0),
         onErrorCallback("Failed to generate private key."));
 
     gnutlsCheck(

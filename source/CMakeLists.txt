@@ -12,4 +12,5 @@ set(SOURCES
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
-target_link_libraries(${PROJECT_NAME} gnutls)
+target_link_libraries(${PROJECT_NAME} /workspace/install/lib/libgnutls.so)
+include_directories(/workspace/install/include)
