@@ -11,6 +11,10 @@ set(SOURCES
     logger/Stream.cpp
 )
 
+if(NOT DEFINED GNUTLS_INSTALL)
+    message(FATAL_ERROR "The GNUTLS_INSTALL variable is not set (-DGNUTLS_INSTALL=...)")
+endif()
+
 add_executable(${PROJECT_NAME} ${SOURCES})
-target_link_libraries(${PROJECT_NAME} /workspace/install/lib/libgnutls.so)
-include_directories(/workspace/install/include)
+target_link_libraries(${PROJECT_NAME} ${GNUTLS_INSTALL}/lib/libgnutls.so)
+include_directories(${GNUTLS_INSTALL}/include)
