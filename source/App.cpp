@@ -1,4 +1,5 @@
 #include "App.hpp"
+#include <iostream>
 #include "certificate/Issuer.hpp"
 #include "certificate/Revocator.hpp"
 #include "Client.hpp"
@@ -21,12 +22,21 @@ bool isCertificateBelowValidityThreshold(gnutls_x509_crt_t& certificate)
 
     return expirationTime > validityThreshold;
 }
+
 } // namespace
 
 App::App(const std::string& resourcesPath)
 : resourcesPath{resourcesPath}
 {
     gnutls_global_init();
+
+    auto logCallback = [](int, const char* message)
+    {
+        std::cout << "[GnuTLS] " << message;
+    };
+
+    gnutls_global_set_log_level(50);
+    gnutls_global_set_log_function(logCallback);
 }
 
 App::~App()

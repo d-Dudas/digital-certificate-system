@@ -33,10 +33,10 @@ std::string getResourcesPath(
 int main(int argc, char* argv[])
 {
     App app{getResourcesPath(argc, argv)};
-    app.showRootCertificateGeneration();
-    app.showDerivedCertificateGeneration();
-    app.showCertificateRevocation();
-    app.showCertificateRenewal();
+    // app.showRootCertificateGeneration();
+    // app.showDerivedCertificateGeneration();
+    // app.showCertificateRevocation();
+    // app.showCertificateRenewal();
     app.showEncryptedCommunicationUsingCertificates();
 
     return 0;
