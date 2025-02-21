@@ -35,7 +35,7 @@ App::App(const std::string& resourcesPath)
         std::cout << "[GnuTLS] " << message;
     };
 
-    gnutls_global_set_log_level(50);
+    gnutls_global_set_log_level(1);
     gnutls_global_set_log_function(logCallback);
 }
 

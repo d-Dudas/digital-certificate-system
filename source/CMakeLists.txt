@@ -16,7 +16,7 @@ if(NOT DEFINED GNUTLS_INSTALL)
 endif()
 
 if(DEFINED RESOURCES_PATH)
-    add_definitions(-DRESOURCES_PATH=\"${RESOURCES_PATH}\")
+    add_definitions(-DRESOURCES_PATH=\"${RESOURCES_PATH}/\")
 endif()
 
 add_executable(${PROJECT_NAME} ${SOURCES})
